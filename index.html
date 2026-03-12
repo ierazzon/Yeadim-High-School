@@ -15,6 +15,17 @@
             overflow: hidden; background: #0a0a0a; font-family: 'Segoe UI', system-ui, sans-serif; 
         }
 
+        /* --- תוספת לטאץ' --- */
+        #touch-layer {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 9999; display: none; pointer-events: none;
+        }
+        @media (pointer: coarse) {
+            #touch-layer { display: flex !important; }
+        }
+        #touch-left, #touch-jump, #touch-right { flex: 1; pointer-events: auto; }
+        /* -------------------- */
+
         #lobby {
             width: 100%; height: 100%;
             background: radial-gradient(circle at center, #222, #000);
@@ -24,13 +35,8 @@
         .corridor-title { color: white; font-size: 3.5rem; margin-bottom: 20px; text-shadow: 0 0 20px var(--accent-color); font-weight: 900; }
 
         .plot-description {
-            color: #ccc;
-            font-size: 1.2rem;
-            max-width: 800px;
-            margin-bottom: 30px;
-            text-align: center;
-            font-style: italic;
-            direction: ltr;
+            color: #ccc; font-size: 1.2rem; max-width: 800px; margin-bottom: 30px;
+            text-align: center; font-style: italic; direction: ltr;
         }
 
         .doors-container {
@@ -66,6 +72,12 @@
 </head>
 <body>
 
+    <div id="touch-layer">
+        <div id="touch-left"></div>
+        <div id="touch-jump"></div>
+        <div id="touch-right"></div>
+    </div>
+
     <div id="lobby">
         <h1 class="corridor-title">Yeadim High School</h1>
         <p class="plot-description">
@@ -89,7 +101,6 @@
     </div>
 
     <script>
-        // ëàï îùåáõ ëì ä-Script äî÷åøé îúåê ax44.html ììà ùéðåé
         const levels = [
             { id: 0, name: "Ilan", img: 'ilan.jpeg', difficulty: 1, type: 'chip' },
             { id: 1, name: "Asaf", img: 'asaf.jpeg', difficulty: 1, type: 'paper' },
@@ -100,15 +111,25 @@
             { id: 6, name: "Alexander", img: 'alexander.jpeg', difficulty: 2, type: 'history-book' }
         ];
 
-        const alexanderJokes = [
-            "To be or not to be?",
-            "History repeats itself!",
-            "Want to hear a joke?",
-            "Henry VIII had six wives!",
-            "A rabbi walks into a bar...",
-            "Check your grammar!",
-            "Shakespeare was here!"
-        ];
+        // --- לוגיקת טאץ' ---
+        const touchLeft = document.getElementById('touch-left');
+        const touchRight = document.getElementById('touch-right');
+        const touchJump = document.getElementById('touch-jump');
+
+        function triggerKeyEvent(type, code) {
+            const event = new KeyboardEvent(type, { code: code, key: code.replace('Arrow', ''), bubbles: true });
+            window.dispatchEvent(event);
+        }
+
+        function addTouchListeners(element, keyCode) {
+            element.addEventListener('touchstart', (e) => { e.preventDefault(); triggerKeyEvent('keydown', keyCode); });
+            element.addEventListener('touchend', (e) => { e.preventDefault(); triggerKeyEvent('keyup', keyCode); });
+        }
+
+        addTouchListeners(touchLeft, 'ArrowLeft');
+        addTouchListeners(touchRight, 'ArrowRight');
+        addTouchListeners(touchJump, 'Space');
+        // -------------------
 
         let completedLevels = new Set();
         let currentLevel = null;
@@ -119,6 +140,7 @@
         
         let grid = [], player, enemies, bonuses, bgImage, lives = 5, percent = 0, lastUpdate = 0;
         let jokeTimer = 0, currentJoke = "", showJoke = false;
+        const alexanderJokes = ["To be or not to be?", "History repeats itself!", "Want to hear a joke?", "Henry VIII had six wives!", "A rabbi walks into a bar...", "Check your grammar!", "Shakespeare was here!"];
 
         function buildCorridor() {
             const container = document.getElementById('doorsContainer');
@@ -127,10 +149,7 @@
                 const door = document.createElement('div');
                 door.className = 'door';
                 door.onclick = () => startLevel(lvl.id);
-                door.innerHTML = `
-                    <img src="${lvl.img}" class="poster" onerror="this.src='https://via.placeholder.com/120x150?text=Teacher'">
-                    <div class="door-label">${lvl.name}</div>
-                `;
+                door.innerHTML = `<img src="${lvl.img}" class="poster" onerror="this.src='https://via.placeholder.com/120x150?text=Teacher'"><div class="door-label">${lvl.name}</div>`;
                 container.appendChild(door);
             });
         }
@@ -161,29 +180,16 @@
             const py = player.y * TILE + TILE / 2;
             player.pulse += 0.1;
             const pulseSize = Math.sin(player.pulse) * 3;
-
             ctx.save();
             ctx.shadowBlur = 15 + pulseSize;
             ctx.shadowColor = "#fff";
-            
             const grad = ctx.createRadialGradient(px, py, 2, px, py, TILE/2);
-            grad.addColorStop(0, "#fff");
-            grad.addColorStop(0.5, varProp('--accent-color'));
-            grad.addColorStop(1, "#006666");
-            
+            grad.addColorStop(0, "#fff"); grad.addColorStop(0.5, varProp('--accent-color')); grad.addColorStop(1, "#006666");
             ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.arc(px, py, TILE/2 - 2, 0, Math.PI * 2);
-            ctx.fill();
-
+            ctx.beginPath(); ctx.arc(px, py, TILE/2 - 2, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = "#000";
-            let eyeOffsetX = player.dirX * 3;
-            let eyeOffsetY = player.dirY * 3;
-            ctx.beginPath();
-            ctx.arc(px + eyeOffsetX - 3, py + eyeOffsetY - 2, 2, 0, Math.PI*2);
-            ctx.arc(px + eyeOffsetX + 3, py + eyeOffsetY - 2, 2, 0, Math.PI*2);
-            ctx.fill();
-            
+            let eyeOffsetX = player.dirX * 3; let eyeOffsetY = player.dirY * 3;
+            ctx.beginPath(); ctx.arc(px + eyeOffsetX - 3, py + eyeOffsetY - 2, 2, 0, Math.PI*2); ctx.arc(px + eyeOffsetX + 3, py + eyeOffsetY - 2, 2, 0, Math.PI*2); ctx.fill();
             ctx.restore();
         }
 
@@ -191,31 +197,18 @@
             ctx.save();
             ctx.translate(e.x * TILE + TILE / 2, e.y * TILE + TILE / 2);
             e.anim += 0.15;
-            
-            if(e.frozen) {
-                ctx.strokeStyle = "cyan"; ctx.lineWidth = 2;
-                ctx.strokeRect(-TILE/2, -TILE/2, TILE, TILE);
-                ctx.globalAlpha = 0.6;
-            }
-
-            ctx.shadowBlur = 12;
-            ctx.shadowColor = e.frozen ? "cyan" : "red";
-
+            if(e.frozen) { ctx.strokeStyle = "cyan"; ctx.lineWidth = 2; ctx.strokeRect(-TILE/2, -TILE/2, TILE, TILE); ctx.globalAlpha = 0.6; }
+            ctx.shadowBlur = 12; ctx.shadowColor = e.frozen ? "cyan" : "red";
             switch(currentLevel.type) {
                 case 'chip':
                     ctx.fillStyle = "#2ecc71"; ctx.fillRect(-8, -8, 16, 16);
                     ctx.fillStyle = "#111"; ctx.fillRect(-4, -4, 8, 8);
                     ctx.fillStyle = "gold";
-                    for(let i=-10; i<=6; i+=4) { 
-                        ctx.fillRect(i, -11, 2, 3); ctx.fillRect(i, 8, 2, 3); 
-                        ctx.fillRect(-11, i, 3, 2); ctx.fillRect(8, i, 3, 2); 
-                    }
+                    for(let i=-10; i<=6; i+=4) { ctx.fillRect(i, -11, 2, 3); ctx.fillRect(i, 8, 2, 3); ctx.fillRect(-11, i, 3, 2); ctx.fillRect(8, i, 3, 2); }
                     break;
                 case 'paper':
-                    ctx.fillStyle = "#fff"; ctx.rotate(Math.sin(e.anim)*0.1);
-                    ctx.fillRect(-7, -10, 14, 20);
-                    ctx.strokeStyle = "#333"; ctx.lineWidth = 1;
-                    for(let i=-6; i<6; i+=4) { ctx.beginPath(); ctx.moveTo(-4, i); ctx.lineTo(4, i); ctx.stroke(); }
+                    ctx.fillStyle = "#fff"; ctx.rotate(Math.sin(e.anim)*0.1); ctx.fillRect(-7, -10, 14, 20);
+                    ctx.strokeStyle = "#333"; ctx.lineWidth = 1; for(let i=-6; i<6; i+=4) { ctx.beginPath(); ctx.moveTo(-4, i); ctx.lineTo(4, i); ctx.stroke(); }
                     ctx.fillStyle = "red"; ctx.font = "bold 8px Arial"; ctx.fillText("100", -5, 8);
                     break;
                 case 'speaker':
@@ -226,8 +219,7 @@
                     ctx.fillStyle = "#666"; ctx.beginPath(); ctx.arc(0, -5, 3, 0, Math.PI*2); ctx.fill();
                     break;
                 case 'camera':
-                    ctx.fillStyle = "#333"; ctx.fillRect(-10, -6, 15, 12);
-                    ctx.fillStyle = "#555"; ctx.fillRect(5, -4, 6, 8);
+                    ctx.fillStyle = "#333"; ctx.fillRect(-10, -6, 15, 12); ctx.fillStyle = "#555"; ctx.fillRect(5, -4, 6, 8);
                     const lensGrad = ctx.createRadialGradient(8, 0, 1, 8, 0, 3);
                     lensGrad.addColorStop(0, "cyan"); lensGrad.addColorStop(1, "blue");
                     ctx.fillStyle = lensGrad; ctx.beginPath(); ctx.arc(8, 0, 3, 0, Math.PI*2); ctx.fill();
@@ -238,36 +230,27 @@
                     ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(0, 9); ctx.stroke();
                     break;
                 case 'plane':
-                    ctx.rotate(Math.atan2(e.dy, e.dx) + Math.PI/2);
-                    ctx.fillStyle = "#78909c";
+                    ctx.rotate(Math.atan2(e.dy, e.dx) + Math.PI/2); ctx.fillStyle = "#78909c";
                     ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(10, 10); ctx.lineTo(0, 5); ctx.lineTo(-10, 10); ctx.closePath(); ctx.fill();
                     ctx.fillStyle = "orange"; if(Math.random() > 0.5) ctx.fillRect(-3, 6, 6, 4);
                     break;
                 case 'history-book':
-                    ctx.fillStyle = "#8b4513"; ctx.fillRect(-10, -12, 20, 24);
-                    ctx.fillStyle = "#f4e4bc"; ctx.fillRect(-8, -10, 16, 20);
+                    ctx.fillStyle = "#8b4513"; ctx.fillRect(-10, -12, 20, 24); ctx.fillStyle = "#f4e4bc"; ctx.fillRect(-8, -10, 16, 20);
                     ctx.fillStyle = "gold";
                     ctx.beginPath(); ctx.moveTo(-5, -12); ctx.lineTo(-5, -17); ctx.lineTo(-2, -14); ctx.lineTo(0, -17); ctx.lineTo(2, -14); ctx.lineTo(5, -17); ctx.lineTo(5, -12); ctx.fill();
                     ctx.fillStyle = "#000"; ctx.font = "bold 6px Arial"; ctx.fillText("ABC", -6, 5);
-
                     jokeTimer++;
                     if (jokeTimer > 150) {
                         if (!showJoke && Math.random() < 0.05) {
                             currentJoke = alexanderJokes[Math.floor(Math.random() * alexanderJokes.length)];
                             showJoke = true;
-                            setTimeout(() => { showJoke = false; }, 3500);
-                            jokeTimer = 0;
+                            setTimeout(() => { showJoke = false; }, 3500); jokeTimer = 0;
                         }
                     }
                     if (showJoke) {
-                        ctx.save(); ctx.translate(0, -30);
-                        ctx.fillStyle = "white"; ctx.strokeStyle = "black"; ctx.lineWidth = 1;
-                        ctx.beginPath(); 
-                        if (ctx.roundRect) ctx.roundRect(-45, -15, 90, 22, 8); else ctx.rect(-45, -15, 90, 22);
-                        ctx.fill(); ctx.stroke();
-                        ctx.fillStyle = "black"; ctx.font = "bold 9px Arial"; ctx.textAlign = "center";
-                        ctx.fillText(currentJoke, 0, 0);
-                        ctx.restore();
+                        ctx.save(); ctx.translate(0, -30); ctx.fillStyle = "white"; ctx.strokeStyle = "black"; ctx.lineWidth = 1;
+                        ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(-45, -15, 90, 22, 8); else ctx.rect(-45, -15, 90, 22);
+                        ctx.fill(); ctx.stroke(); ctx.fillStyle = "black"; ctx.font = "bold 9px Arial"; ctx.textAlign = "center"; ctx.fillText(currentJoke, 0, 0); ctx.restore();
                     }
                     break;
             }
@@ -280,20 +263,16 @@
             if (e.key === "Escape") exitToLobby();
             if (!gameActive) return;
             if (e.key === " ") player.drawing = true;
-            
             let nx = player.x, ny = player.y;
             player.dirX = 0; player.dirY = 0;
-
             if(e.key === "ArrowUp") { ny--; player.dirY = -1; }
             if(e.key === "ArrowDown") { ny++; player.dirY = 1; }
             if(e.key === "ArrowLeft") { nx--; player.dirX = -1; }
             if(e.key === "ArrowRight") { nx++; player.dirX = 1; }
-
             if(nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) {
                 if(player.drawing && grid[nx][ny] === 2) { handleDeath(); return; }
                 if(player.drawing && grid[nx][ny] === 0) grid[nx][ny] = 2;
                 player.x = nx; player.y = ny;
-                
                 bonuses = bonuses.filter(b => {
                     if(b.x === player.x && b.y === player.y) { applyBonus(b.type); return false; }
                     return true;
@@ -330,11 +309,8 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             for(let x=0; x<COLS; x++) {
                 for(let y=0; y<ROWS; y++) {
-                    if(grid[x][y] === 1) {
-                        ctx.drawImage(bgImage, (x/COLS)*bgImage.width, (y/ROWS)*bgImage.height, bgImage.width/COLS, bgImage.height/ROWS, x*TILE, y*TILE, TILE, TILE);
-                    } else if(grid[x][y] === 2) {
-                        ctx.fillStyle = "rgba(255, 0, 0, 0.6)"; ctx.fillRect(x*TILE+1, y*TILE+1, TILE-2, TILE-2);
-                    }
+                    if(grid[x][y] === 1) ctx.drawImage(bgImage, (x/COLS)*bgImage.width, (y/ROWS)*bgImage.height, bgImage.width/COLS, bgImage.height/ROWS, x*TILE, y*TILE, TILE, TILE);
+                    else if(grid[x][y] === 2) { ctx.fillStyle = "rgba(255, 0, 0, 0.6)"; ctx.fillRect(x*TILE+1, y*TILE+1, TILE-2, TILE-2); }
                 }
             }
             bonuses.forEach(b => {
@@ -352,9 +328,8 @@
                 enemies.forEach(e => {
                     if(e.frozen) return;
                     let nx = e.x + e.dx, ny = e.y + e.dy;
-                    if(nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS || grid[nx][ny] === 1) {
-                        if (Math.random() > 0.5) e.dx *= -1; else e.dy *= -1;
-                    } else { e.x = nx; e.y = ny; }
+                    if(nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS || grid[nx][ny] === 1) { if (Math.random() > 0.5) e.dx *= -1; else e.dy *= -1; }
+                    else { e.x = nx; e.y = ny; }
                     if(grid[e.x][e.y] === 2 || (e.x === player.x && e.y === player.y)) handleDeath();
                 });
                 lastUpdate = ts;
@@ -365,19 +340,9 @@
 
         function applyBonus(type) {
             const msg = document.getElementById('bonusMessage');
-            if (type === 'FREEZE') { 
-                enemies.forEach(e => e.frozen = true); 
-                msg.innerText = "TIME FREEZE!"; 
-                setTimeout(() => { enemies.forEach(e => e.frozen = false); msg.innerText = ""; }, 5000); 
-            } else if (type === 'SPEED') { 
-                player.speed = 2; 
-                msg.innerText = "SPEED UP!"; 
-                setTimeout(() => { player.speed = 1; msg.innerText = ""; }, 7000); 
-            } else if (type === 'LIFE') { 
-                lives++; updateUI(); 
-                msg.innerText = "+1 LIFE"; 
-                setTimeout(() => { msg.innerText = ""; }, 3000); 
-            }
+            if (type === 'FREEZE') { enemies.forEach(e => e.frozen = true); msg.innerText = "TIME FREEZE!"; setTimeout(() => { enemies.forEach(e => e.frozen = false); msg.innerText = ""; }, 5000); }
+            else if (type === 'SPEED') { player.speed = 2; msg.innerText = "SPEED UP!"; setTimeout(() => { player.speed = 1; msg.innerText = ""; }, 7000); }
+            else if (type === 'LIFE') { lives++; updateUI(); msg.innerText = "+1 LIFE"; setTimeout(() => { msg.innerText = ""; }, 3000); }
         }
 
         function calculatePercent() {
@@ -390,10 +355,7 @@
         function handleDeath() {
             lives--; updateUI();
             if(lives <= 0) { alert("GAME OVER"); exitToLobby(); }
-            else { 
-                player.x = 0; player.y = 0; player.drawing = false; 
-                for(let x=0; x<COLS; x++) for(let y=0; y<ROWS; y++) if(grid[x][y] == 2) grid[x][y] = 0; 
-            }
+            else { player.x = 0; player.y = 0; player.drawing = false; for(let x=0; x<COLS; x++) for(let y=0; y<ROWS; y++) if(grid[x][y] == 2) grid[x][y] = 0; }
         }
 
         function updateUI() { document.getElementById('livesText').innerText = lives; document.getElementById('percentText').innerText = percent + "%"; }
